@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>授業用 くじ引きアプリ</title>
+  <style>
+    :root {
+      --primary-color: #4A90E2;
+      --accent-color: #FF6B6B;
+      --bg-color: #F4F7F6;
+      --card-bg: #FFFFFF;
+    }
+
+    body {
+      font-family: "Helvetica Neue", Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
+      background-color: var(--bg-color);
+      margin: 0;
+      padding: 15px;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--card-bg);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+      padding: 20px;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      text-align: center;
+      margin: 0 0 15px 0;
+      font-size: 24px;
+      color: #2C3E50;
+    }
+
+    .control-panel {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    select, button {
+      font-size: 16px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #CCC;
+      outline: none;
+      cursor: pointer;
+    }
+
+    select {
+      font-weight: bold;
+      background-color: #FFF;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+
+    .btn-edit {
+      background-color: #6C757D;
+      color: white;
+      border: none;
+    }
+
+    .btn-reset {
+      background-color: #E74C3C;
+      color: white;
+      border: none;
+    }
+
+    /* メイン表示エリア */
+    .display-area {
+      background: #EBF5FB;
+      border: 3px dashed var(--primary-color);
+      border-radius: 12px;
+      height: 180px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+      position: relative;
+    }
+
+    .result-name {
+      font-size: 48px;
+      font-weight: bold;
+      color: #2C3E50;
+      text-align: center;
+      word-break: break-all;
+      padding: 0 10px;
+    }
+
+    .status-text {
+      font-size: 14px;
+      color: #7F8C8D;
+      margin-top: 8px;
+    }
+
+    .btn-draw {
+      width: 100%;
+      padding: 18px;
+      font-size: 26px;
+      font-weight: bold;
+      background-color: var(--accent-color);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 0 #C0392B;
+      transition: all 0.1s;
+    }
+
+    .btn-draw:active {
+      transform: translateY(4px);
+      box-shadow: 0 0 0 #C0392B;
+    }
+
+    .btn-draw:disabled {
+      background-color: #BDC3C7;
+      box-shadow: none;
+      cursor: not-allowed;
+    }
+
+    /* 名簿・当選状況 */
+    .info-panel {
+      margin-top: 25px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+    }
+
+    .list-box {
+      background: #F8F9F9;
+      border-radius: 8px;
+      padding: 12px;
+      border: 1px solid #E5E8E8;
+    }
+
+    .list-box h3 {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #566573;
+    }
+
+    .name-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .tag {
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: #E5E8E8;
+      color: #333;
+    }
+
+    .tag.drawn {
+      background: #2ECC71;
+      color: white;
+      text-decoration: line-through;
+      opacity: 0.7;
+    }
+
+    /* モーダル */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.5);
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      margin-top: 10px;
+      box-sizing: border-box;
+      padding: 10px;
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #CCC;
+    }
+
+    .modal-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 15px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎯 授業用 くじ引き</h1>
+
+  <div class="control-panel">
+    <div>
+      <select id="classSelect" onchange="changeClass()">
+        <!-- 8クラス分 -->
+        <option value="1">1組</option>
+        <option value="2">2組</option>
+        <option value="3">3組</option>
+        <option value="4">4組</option>
+        <option value="5">5組</option>
+        <option value="6">6組</option>
+        <option value="7">7組</option>
+        <option value="8">8組</option>
+      </select>
+      <button class="btn-edit" onclick="openEditModal()">📝 名簿の編集</button>
+    </div>
+    <button class="btn-reset" onclick="resetCurrentClass()">🔄 このクラスのくじを最初からやり直す</button>
+  </div>
+
+  <div class="display-area">
+    <div class="result-name" id="resultDisplay">スタートを押してください</div>
+    <div class="status-text" id="statusDisplay">残り: 0名 / 全体: 0名</div>
+  </div>
+
+  <button class="btn-draw" id="drawBtn" onclick="drawLottery()">くじを引く！</button>
+
+  <div class="info-panel">
+    <div class="list-box">
+      <h3>まだ当たっていない人</h3>
+      <div class="name-tags" id="remainingTags"></div>
+    </div>
+    <div class="list-box">
+      <h3>当たった人</h3>
+      <div class="name-tags" id="drawnTags"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 名簿編集用モーダル -->
+<div class="modal" id="editModal">
+  <div class="modal-content">
+    <h3 id="modalTitle">名簿編集</h3>
+    <p style="font-size: 12px; color: #666; margin: 0;">1行に1人ずつ名前を入力してください（最大35名推奨）。</p>
+    <textarea id="nameInputArea"></textarea>
+    <div class="modal-buttons">
+      <button onclick="closeEditModal()">キャンセル</button>
+      <button style="background: var(--primary-color); color: white; border: none;" onclick="saveNames()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const CLASS_COUNT = 8;
+  let currentClass = "1";
+  let classData = {};
+
+  // 初期化（デフォルトデータ生成）
+  function initData() {
+    const saved = localStorage.getItem('class_lottery_data');
+    if (saved) {
+      classData = JSON.parse(saved);
+    } else {
+      for (let i = 1; i <= CLASS_COUNT; i++) {
+        let defaultNames = [];
+        for (let j = 1; j <= 35; j++) {
+          defaultNames.push(`生徒${j}`);
+        }
+        classData[i] = {
+          all: defaultNames,
+          remaining: [...defaultNames],
+          drawn: []
+        };
+      }
+      saveToStorage();
+    }
+    updateUI();
+  }
+
+  function saveToStorage() {
+    localStorage.setItem('class_lottery_data', JSON.stringify(classData));
+  }
+
+  function changeClass() {
+    currentClass = document.getElementById('classSelect').value;
+    document.getElementById('resultDisplay').textContent = "スタートを押してください";
+    updateUI();
+  }
+
+  function updateUI() {
+    const data = classData[currentClass];
+    const drawBtn = document.getElementById('drawBtn');
+    
+    document.getElementById('statusDisplay').textContent = 
+      `残り: ${data.remaining.length}名 / 全体: ${data.all.length}名`;
+
+    if (data.remaining.length === 0 && data.all.length > 0) {
+      document.getElementById('resultDisplay').textContent = "全員当たりました！";
+      drawBtn.disabled = true;
+    } else if (data.all.length === 0) {
+      document.getElementById('resultDisplay').textContent = "名簿が空です";
+      drawBtn.disabled = true;
+    } else {
+      drawBtn.disabled = false;
+    }
+
+    // タグ一覧表示
+    const remainingContainer = document.getElementById('remainingTags');
+    remainingContainer.innerHTML = data.remaining.map(name => `<span class="tag">${name}</span>`).join('');
+
+    const drawnContainer = document.getElementById('drawnTags');
+    drawnContainer.innerHTML = data.drawn.map(name => `<span class="tag drawn">${name}</span>`).join('');
+  }
+
+  let isSpinning = false;
+  function drawLottery() {
+    const data = classData[currentClass];
+    if (isSpinning || data.remaining.length === 0) return;
+
+    isSpinning = true;
+    const drawBtn = document.getElementById('drawBtn');
+    drawBtn.disabled = true;
+
+    const display = document.getElementById('resultDisplay');
+    let counter = 0;
+    
+    // ドラムロール演出 (1.5秒間名前を高速シャッフル)
+    const timer = setInterval(() => {
+      const randomIndex = Math.floor(Math.random() * data.remaining.length);
+      display.textContent = data.remaining[randomIndex];
+      counter++;
+
+      if (counter > 15) {
+        clearInterval(timer);
+        // 最終当選決定
+        const finalIndex = Math.floor(Math.random() * data.remaining.length);
+        const selectedPerson = data.remaining.splice(finalIndex, 1)[0];
+        data.drawn.push(selectedPerson);
+        
+        display.textContent = selectedPerson;
+        saveToStorage();
+        isSpinning = false;
+        updateUI();
+      }
+    }, 80);
+  }
+
+  function resetCurrentClass() {
+    if (confirm(`${currentClass}組のくじ引き状態をリセットし、全員対象に戻しますか？`)) {
+      classData[currentClass].remaining = [...classData[currentClass].all];
+      classData[currentClass].drawn = [];
+      document.getElementById('resultDisplay').textContent = "スタートを押してください";
+      saveToStorage();
+      updateUI();
+    }
+  }
+
+  // 名簿編集機能
+  function openEditModal() {
+    document.getElementById('modalTitle').textContent = `${currentClass}組の名簿編集`;
+    document.getElementById('nameInputArea').value = classData[currentClass].all.join('\n');
+    document.getElementById('editModal').style.display = 'flex';
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').style.display = 'none';
+  }
+
+  function saveNames() {
+    const rawText = document.getElementById('nameInputArea').value;
+    const names = rawText.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+    
+    classData[currentClass].all = names;
+    classData[currentClass].remaining = [...names];
+    classData[currentClass].drawn = [];
+    
+    saveToStorage();
+    closeEditModal();
+    document.getElementById('resultDisplay').textContent = "名簿を更新しました";
+    updateUI();
+  }
+
+  window.onload = initData;
+</script>
+
+</body>
+</html>
