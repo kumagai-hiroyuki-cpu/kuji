@@ -48,13 +48,13 @@
       color: #475569;
     }
     .display-area {
-      height: 150px;
+      height: 130px;
       display: flex;
       align-items: center;
       justify-content: center;
       background: #f8fafc;
       border-radius: 12px;
-      margin: 15px 0;
+      margin: 15px 0 10px 0;
       border: 2px dashed #cbd5e1;
       overflow: hidden;
     }
@@ -62,6 +62,15 @@
       font-size: 2.8rem;
       font-weight: bold;
       color: #1e293b;
+    }
+    .status-bar {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 10px;
     }
     .btn-draw {
       background: #3b82f6;
@@ -80,6 +89,49 @@
     .btn-draw:disabled {
       background: #94a3b8;
       box-shadow: none;
+    }
+    .btn-reset-small {
+      background: none;
+      border: none;
+      color: #ef4444;
+      font-size: 0.85rem;
+      cursor: pointer;
+      text-decoration: underline;
+      padding: 0;
+    }
+    /* 当たった生徒一覧エリア */
+    .history-container {
+      margin-top: 20px;
+      padding-top: 15px;
+      border-top: 1px solid #e2e8f0;
+      text-align: left;
+    }
+    .history-title {
+      font-size: 0.95rem;
+      font-weight: bold;
+      color: #475569;
+      margin-bottom: 10px;
+    }
+    .history-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .history-tag {
+      background: #e2e8f0;
+      color: #334155;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .history-tag span {
+      font-size: 0.75rem;
+      color: #64748b;
     }
     /* モーダル */
     .modal {
@@ -137,9 +189,9 @@
 
       <!-- 演出時間の選択 -->
       <select id="speedSelect" onchange="saveSpeed()">
-        <option value="1000">⚡ サクサク (1秒)</option>
-        <option value="2500" selected>⚖️ ふつう (2.5秒)</option>
-        <option value="5000">🎭 じっくり (5秒)</option>
+        <option value="500">⚡ サクサク (0.5秒)</option>
+        <option value="1000" selected>⚖️ ふつう (1秒)</option>
+        <option value="3000">🎭 じっくり (3秒)</option>
       </select>
 
       <!-- 名簿編集ボタン -->
@@ -151,8 +203,20 @@
       <div id="nameDisplay" class="name-display">スタート！</div>
     </div>
 
+    <!-- ステータス（残り人数など） -->
+    <div class="status-bar">
+      <span id="statusText">残り: 0人 / 全員: 0人</span>
+      <button class="btn-reset-small" onclick="resetLottery()">🔄 最初からやり直す</button>
+    </div>
+
     <!-- くじを引くボタン -->
     <button id="drawBtn" class="btn-draw" onclick="startLottery()">くじを引く</button>
+
+    <!-- 当たった生徒一覧 -->
+    <div class="history-container">
+      <div class="history-title">🎉 当たった生徒 (<span id="historyCount">0</span>名)</div>
+      <div id="historyList" class="history-list"></div>
+    </div>
   </div>
 
   <!-- 名簿編集用モーダル -->
@@ -172,13 +236,14 @@
     let currentClass = "1";
     let rosters = {};
     let remainingStudents = [];
+    let drawnStudents = [];
     let isSpinning = false;
 
     // 初期化
     window.onload = function() {
       loadRosters();
       loadSpeed();
-      updateRemaining();
+      resetLottery();
     };
 
     // 演出スピードのロード・保存
@@ -210,21 +275,43 @@
     // クラス切り替え
     function changeClass() {
       currentClass = document.getElementById('classSelect').value;
-      updateRemaining();
-      document.getElementById('nameDisplay').textContent = "スタート！";
+      resetLottery();
     }
 
-    // 残り生徒の更新
-    function updateRemaining() {
+    // くじのリセット（最初からやり直す）
+    function resetLottery() {
       const currentList = rosters[currentClass] || [];
       remainingStudents = [...currentList];
+      drawnStudents = [];
+      document.getElementById('nameDisplay').textContent = "スタート！";
+      updateUI();
+    }
+
+    // UI更新（カウント・当たった人リスト）
+    function updateUI() {
+      const total = (rosters[currentClass] || []).length;
+      const remaining = remainingStudents.length;
+      document.getElementById('statusText').textContent = `残り: ${remaining}人 / 全員: ${total}人`;
+      document.getElementById('historyCount').textContent = drawnStudents.length;
+
+      const historyListEl = document.getElementById('historyList');
+      historyListEl.innerHTML = '';
+      
+      drawnStudents.forEach((student, index) => {
+        const tag = document.createElement('div');
+        tag.className = 'history-tag';
+        tag.innerHTML = `<span>${index + 1}.</span> ${student}`;
+        historyListEl.appendChild(tag);
+      });
     }
 
     // くじ引き実行
     function startLottery() {
       if (isSpinning) return;
+      
+      // 全員当たり終わったら自動リセット
       if (remainingStudents.length === 0) {
-        updateRemaining(); // 全員当たったらリセット
+        resetLottery();
       }
 
       const display = document.getElementById('nameDisplay');
@@ -235,7 +322,7 @@
       drawBtn.disabled = true;
 
       const currentList = rosters[currentClass];
-      const intervalTime = 50; // 回転スピード（ミリ秒）
+      const intervalTime = 40; // 回転表示の間隔
       
       const timer = setInterval(() => {
         const randomName = currentList[Math.floor(Math.random() * currentList.length)];
@@ -247,7 +334,11 @@
         clearInterval(timer);
         const selectedIndex = Math.floor(Math.random() * remainingStudents.length);
         const winner = remainingStudents.splice(selectedIndex, 1)[0];
+        
+        drawnStudents.push(winner);
         display.textContent = winner;
+        
+        updateUI();
         
         isSpinning = false;
         drawBtn.disabled = false;
@@ -256,24 +347,4 @@
 
     // モーダル操作
     function openModal() {
-      document.getElementById('modalClassTitle').textContent = `${currentClass}組`;
-      document.getElementById('rosterInput').value = (rosters[currentClass] || []).join('\n');
-      document.getElementById('editModal').style.display = 'flex';
-    }
-
-    function closeModal() {
-      document.getElementById('editModal').style.display = 'none';
-    }
-
-    function saveRoster() {
-      const text = document.getElementById('rosterInput').value;
-      const lines = text.split('\n').map(s => s.trim()).filter(s => s !== '');
-      rosters[currentClass] = lines;
-      localStorage.setItem('lottery_rosters', JSON.stringify(rosters));
-      updateRemaining();
-      closeModal();
-      document.getElementById('nameDisplay').textContent = "更新完了";
-    }
-  </script>
-</body>
-</html>
+      document.getElementById('modalClassTitle').
